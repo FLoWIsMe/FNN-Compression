@@ -1,7 +1,7 @@
 # Loading the trained model
 import torch
 import torch.nn as nn
-from ControlModel import FeedforwardNeuralNetModel
+from ..Control_Model import FeedforwardNeuralNetModel
 import torchvision.transforms as transforms
 import torchvision.datasets as dsets
 import torch.nn.utils.prune as prune
