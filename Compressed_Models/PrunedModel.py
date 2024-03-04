@@ -10,8 +10,15 @@ import torch.nn.functional as F
 
 # Assuming FeedforwardNeuralNetModel class is defined here
 
-# Initialize the model
-model = FeedforwardNeuralNetModel(input_dim, hidden_dim, output_dim)
+model_load_path = 'configElements.pth'
+# Loading the config elements:
+checkpoint = torch.load(model_load_path)
+
+# Extract model configuration
+model_config = checkpoint['model_config']
+
+# Initialize the model with loaded configuration
+model = FeedforwardNeuralNetModel(**model_config)
 
 # Load the model state
 model_load_path = 'FeedforwardNeuralNetModel.pth'

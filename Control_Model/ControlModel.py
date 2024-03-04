@@ -140,8 +140,17 @@ for epoch in range(num_epochs):
             
 # Saving the model state dictionary so I can apply compression methods to it
 # Save the model
-model_save_path = './code/compressed models/FeedforwardNeuralNetModel.pth'
+model_save_path = './code/compressed_models/FeedforwardNeuralNetModel.pth'
 torch.save(model.state_dict(), model_save_path)
+
+# Save the model configuration
+config_save_path = './code/compressed_models/configElements.pth'
+model_config = {'input_dim': input_dim, 'hidden_dim': hidden_dim, 'output_dim': output_dim}
+torch.save({
+    'model_state_dict': model.state_dict(),
+    'model_config': model_config
+}, config_save_path)
+
 
 # TODO: Implement pruning
 # Pruning the model:
