@@ -15,7 +15,6 @@ train_dataset = dsets.MNIST(root='./data',
 test_dataset = dsets.MNIST(root='./data', 
                            train=False, 
                            transform=transforms.ToTensor())
-
 '''
 MAKING DATASET ITERABLE
 '''
