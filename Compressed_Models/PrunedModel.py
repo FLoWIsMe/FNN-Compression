@@ -1,16 +1,18 @@
-# Loading the trained model
+
 import torch
 import torch.nn as nn
-from ..Control_Model import FeedforwardNeuralNetModel
 import torchvision.transforms as transforms
 import torchvision.datasets as dsets
 import torch.nn.utils.prune as prune
 import torch.nn.functional as F
 
+import sys
+sys.path.append('../Control_Model')
 
-# Assuming FeedforwardNeuralNetModel class is defined here
+from Control_Model import FeedforwardNeuralNetModel
 
-model_load_path = 'configElements.pth'
+
+model_load_path = '/Users/ddvids123/Desktop/Thesis/Code/Compressed_Models/configElements.pth'
 # Loading the config elements:
 checkpoint = torch.load(model_load_path)
 
@@ -21,7 +23,7 @@ model_config = checkpoint['model_config']
 model = FeedforwardNeuralNetModel(**model_config)
 
 # Load the model state
-model_load_path = 'FeedforwardNeuralNetModel.pth'
+model_load_path = 'Code/Compressed_Models/FeedforwardNeuralNetModel.pth'
 model.load_state_dict(torch.load(model_load_path))
 
 # Set the model to evaluation mode if you are not training it further
