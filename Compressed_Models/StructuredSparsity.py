@@ -79,6 +79,28 @@ learning_rate = 0.1
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 '''
+Apply Structured Sparsity
+'''
+def apply_structured_sparsity(model, sparsity_level=0.3):
+    """
+    Apply structured sparsity to the model, removing entire neurons based on the L1 norm of their weights.
+    
+    :param model: The neural network model to prune.
+    :param sparsity_level: The fraction of neurons to remove (0.3 means removing 30% of neurons).
+    """
+    # Prune 30% of neurons in fc1 based on their weight's L1 norm
+    prune.ln_structured(model.fc1, name='weight', amount=sparsity_level, n=1, dim=0)
+    prune.remove(model.fc1, 'weight')  # Make the pruning permanent
+    
+    # Prune 30% of neurons in fc2 based on their weight's L1 norm
+    # Note: For fc2, we prune input neurons, which correspond to columns in the weight matrix
+    prune.ln_structured(model.fc2, name='weight', amount=sparsity_level, n=1, dim=1)
+    prune.remove(model.fc2, 'weight')  # Make the pruning permanent
+
+# Example usage
+apply_structured_sparsity(model)
+
+'''
 TRAIN THE MODEL
 '''
 iter = 0
