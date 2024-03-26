@@ -131,30 +131,13 @@ for epoch in range(num_epochs):
             print('Iteration: {}. Loss: {}. Accuracy: {}'.format(iter, loss.item(), accuracy))
 
 
-# Apply unstructured pruning to fc1 layer
-prune.l1_unstructured(model.fc1, name='weight', amount=0.5)
-
-# To make the pruning permanent, remove the reparameterization
-# for module in model.modules():
-#     if isinstance(module, torch.nn.Linear):
-#         prune.remove(module, 'weight')
-
-# Evaluate the pruned model
-correct = 0
-total = 0
-with torch.no_grad():
-    for images, labels in test_loader:
-        images = images.view(-1, 28*28)
-        outputs = model(images)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-
-accuracy = 100 * correct / total
-print(f'Accuracy of the pruned model on the test images:  {accuracy}' )
-
+# def recompute_mask(self, theta: float = 0.001):
+#     self.mask = torch.ones(
+#         self.weight.shape, dtype=torch.bool, device=self.mask.device
+#     )
+#     self.mask[torch.where(abs(self.weight) < theta)] = False
             
-# Saving the model state dictionary so I can evalaute it
+# Saving the model state dictionary so I can apply compression methods to it
 # Save the model
 import os
 
@@ -178,7 +161,7 @@ torch.save({
 
 
 
-# # Alternate Pruning of the FeedforwardNeuralNetModel
+# # Pruning the FeedforwardNeuralNetModel
 # def prune_model(model, pruning_rate=0.3):
 #     # Pruning 30% of the connections in both linear layers
 #     prune.l1_unstructured(model.fc1, name='weight', amount=pruning_rate)
@@ -189,3 +172,28 @@ torch.save({
 
 # prune_model(model)
 
+
+# Appyling Quantization
+import torch.quantization
+
+# Dynamic Quantization
+quantized_model = torch.quantization.quantize_dynamic(
+    model,
+    {nn.Linear},  # Specify which layers to quantize
+    dtype=torch.qint8
+)
+
+# Performing low-rank approximation
+def low_rank_approximation(layer, rank=10):
+    # Perform SVD on the weight of a layer
+    U, S, V = torch.svd(layer.weight.data)
+    # Approximate the weight using a lower rank
+    low_rank_weight = torch.mm(U[:, :rank], torch.mm(torch.diag(S[:rank]), V.t()[:rank, :]))
+    layer.weight.data = low_rank_weight
+
+low_rank_approximation(model.fc1, rank=50)  # Example for fc1 layer
+low_rank_approximation(model.fc2, rank=50)  # Example for fc2 layer
+
+    
+# TODO: Implement knowledge distillation
+# Performing knowledge distillation
