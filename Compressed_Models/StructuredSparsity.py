@@ -79,7 +79,7 @@ learning_rate = 0.1
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 '''
-Apply Structured Sparsity
+APPLY STRUCTURED SPARSITY
 '''
 def apply_structured_sparsity(model, sparsity_level=0.3):
     """
@@ -97,7 +97,7 @@ def apply_structured_sparsity(model, sparsity_level=0.3):
     prune.ln_structured(model.fc2, name='weight', amount=sparsity_level, n=1, dim=1)
     prune.remove(model.fc2, 'weight')  # Make the pruning permanent
 
-# Example usage
+# Applying it to the model
 apply_structured_sparsity(model)
 
 '''
@@ -152,15 +152,6 @@ for epoch in range(num_epochs):
             # Print Loss
             print('Iteration: {}. Loss: {}. Accuracy: {}'.format(iter, loss.item(), accuracy))
 
-
-# def recompute_mask(self, theta: float = 0.001):
-#     self.mask = torch.ones(
-#         self.weight.shape, dtype=torch.bool, device=self.mask.device
-#     )
-#     self.mask[torch.where(abs(self.weight) < theta)] = False
-            
-# Saving the model state dictionary so I can apply compression methods to it
-# Save the model
 import os
 
 # Define the model save path
@@ -182,15 +173,5 @@ torch.save({
 
 
 
-
-# TODO: Implement pruning
-# Pruning the model:
-
-# TODO: Implement quantization
-# Performing quanitzation on the model:
-    
-# TODO: Implement low-rank approximation
-# Performing low-rank approximation
-    
 # TODO: Implement knowledge distillation
 # Performing knowledge distillation
