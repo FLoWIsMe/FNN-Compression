@@ -160,11 +160,38 @@ torch.save({
 
 
 # Appyling Quantization
-import torch.quantization
+import torch
 
-# Dynamic Quantization
+# Set the quantization backend to FBGEMM for x86 architectures
+torch.backends.quantized.engine = 'qnnpack'  # Use 'qnnpack' for ARM
+
+# Apply dynamic quantization
 quantized_model = torch.quantization.quantize_dynamic(
-    model,
-    {nn.Linear},  # Specify which layers to quantize
-    dtype=torch.qint8
+    model,  # the original model
+    {nn.Linear},  # specify the layer types to quantize
+    dtype=torch.qint8  # the target dtype for quantized weights
 )
+
+# Save the quantized model
+quantized_model_path = './compressed_models/quantized_FeedforwardNeuralNetModel.pth'
+torch.save(quantized_model.state_dict(), quantized_model_path)
+
+print("Quantized model saved successfully.")
+
+# Evaluate the quantized model
+correct = 0
+total = 0
+with torch.no_grad():
+    for images, labels in test_loader:
+        images = images.view(-1, 28*28)
+        outputs = quantized_model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+accuracy = 100 * correct / total
+
+# Format accuracy to 16 decimal places
+formatted_accuracy = "{:.16f}".format(accuracy)
+
+print(f'Accuracy of the quantized model on the test images: {formatted_accuracy}%')
