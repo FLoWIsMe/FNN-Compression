@@ -173,7 +173,7 @@ quantized_model = torch.quantization.quantize_dynamic(
 )
 
 # Save the quantized model
-quantized_model_path = './compressed_models/quantized_FeedforwardNeuralNetModel.pth'
+quantized_model_path = './Saved_Models/QuantizedModel.pth'
 torch.save(quantized_model.state_dict(), quantized_model_path)
 
 print("Quantized model saved successfully.")

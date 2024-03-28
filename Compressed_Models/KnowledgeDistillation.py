@@ -130,19 +130,10 @@ for epoch in range(num_epochs):
             # Print Loss
             print('Iteration: {}. Loss: {}. Accuracy: {}'.format(iter, loss.item(), accuracy))
 
-
-# def recompute_mask(self, theta: float = 0.001):
-#     self.mask = torch.ones(
-#         self.weight.shape, dtype=torch.bool, device=self.mask.device
-#     )
-#     self.mask[torch.where(abs(self.weight) < theta)] = False
-            
-# Saving the model state dictionary so I can apply compression methods to it
-# Save the model
 import os
 
 # Define the model save path
-model_save_path = './compressed_models/FeedforwardNeuralNetModel.pth'
+model_save_path = './Saved_Models/ControlModel.pth'
 
 # Ensure the directory exists
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
@@ -151,7 +142,7 @@ os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 torch.save(model.state_dict(), model_save_path)
 
 # Save the model configuration
-config_save_path = './compressed_models/configElements.pth'
+config_save_path = './Saved_Models/ControlModelconfigElements.pth'
 model_config = {'input_dim': input_dim, 'hidden_dim': hidden_dim, 'output_dim': output_dim}
 torch.save({
     'model_state_dict': model.state_dict(),
@@ -207,19 +198,62 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+import torch.optim as optim
 
+# Re-initialize the student model to make sure we're starting fresh
+student_model = StudentFeedforwardNeuralNetModel(input_dim, hidden_dim, output_dim)
 
-# # Performing low-rank approximation
-# def low_rank_approximation(layer, rank=10):
-#     # Perform SVD on the weight of a layer
-#     U, S, V = torch.svd(layer.weight.data)
-#     # Approximate the weight using a lower rank
-#     low_rank_weight = torch.mm(U[:, :rank], torch.mm(torch.diag(S[:rank]), V.t()[:rank, :]))
-#     layer.weight.data = low_rank_weight
+# Initialize the optimizer for the student model
+student_optimizer = optim.SGD(student_model.parameters(), lr=learning_rate)
 
-# low_rank_approximation(model.fc1, rank=50)  # Example for fc1 layer
-# low_rank_approximation(model.fc2, rank=50)  # Example for fc2 layer
+for epoch in range(num_epochs):
+    for images, labels in train_loader:
+        images = images.view(-1, 28*28).requires_grad_()
 
-    
-# TODO: Implement knowledge distillation
-# Performing knowledge distillation
+        # No gradients for the teacher outputs
+        with torch.no_grad():
+            teacher_outputs = model(images)
+
+        student_outputs = student_model(images)
+
+        loss_hard = criterion(student_outputs, labels)
+        loss_soft = F.kl_div(
+            F.log_softmax(student_outputs / temperature, dim=1),
+            F.softmax(teacher_outputs / temperature, dim=1),
+            reduction='batchmean'
+        )
+        loss = alpha * loss_hard + (1 - alpha) * loss_soft
+
+        student_optimizer.zero_grad()
+        loss.backward()
+        student_optimizer.step()
+
+    # Calculate Accuracy after each epoch
+    student_model.eval()  # Set the model to evaluation mode
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images, labels in test_loader:
+            images = images.view(-1, 28*28)
+            outputs = student_model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    accuracy = 100 * correct / total
+    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.16f}, Accuracy: {accuracy:.16f}%')
+
+    student_model.train()  # Set the model back to training mode
+
+# Define the path where you want to save the student model's state dictionary
+student_model_save_path = './Saved_Models/KnowledgeDitilledModel(StudentModel).pth'
+
+# Ensure the directory exists
+if not os.path.exists(os.path.dirname(student_model_save_path)):
+    os.makedirs(os.path.dirname(student_model_save_path))
+
+# Save the state dictionary of the student model
+torch.save(student_model.state_dict(), student_model_save_path)
+
+print(f'Student model saved to {student_model_save_path}')
+

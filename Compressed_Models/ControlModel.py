@@ -142,7 +142,7 @@ for epoch in range(num_epochs):
 import os
 
 # Define the model save path
-model_save_path = './compressed_models/FeedforwardNeuralNetModel.pth'
+model_save_path = './Saved_Models/ControlModel.pth'
 
 # Ensure the directory exists
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
@@ -151,7 +151,7 @@ os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 torch.save(model.state_dict(), model_save_path)
 
 # Save the model configuration
-config_save_path = './compressed_models/configElements.pth'
+config_save_path = './Saved_Models/ControlModelConfigElements.pth'
 model_config = {'input_dim': input_dim, 'hidden_dim': hidden_dim, 'output_dim': output_dim}
 torch.save({
     'model_state_dict': model.state_dict(),
