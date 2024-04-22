@@ -3,6 +3,8 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import torchvision.datasets as dsets
 import torch.nn.utils.prune as prune
+import os
+import time
 
 # Loading Dataset
 train_dataset = dsets.MNIST(root='./data', 
@@ -91,22 +93,42 @@ def apply_and_finalize_pruning(model, pruning_rate=0.5):
 
 apply_and_finalize_pruning(model, 0.5)
 
+import statistics
+
 # Evaluate the pruned model
 correct = 0
 total = 0
+inference_times = []
+
+model.eval()  # Set the model to evaluation mode
+
 with torch.no_grad():
     for images, labels in test_loader:
         images = images.view(-1, 28*28)
+
+        start_time = time.perf_counter()
         outputs = model(images)
+        end_time = time.perf_counter()
+
+        inference_times.append((end_time - start_time) * 1000)  # Convert to milliseconds
+
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
 accuracy = 100 * correct / total
-print(f'Accuracy of the pruned model on the test images:  {accuracy}')
+average_inference_time = sum(inference_times) / len(inference_times)
+min_time = min(inference_times)
+max_time = max(inference_times)
+std_dev_time = statistics.stdev(inference_times)
+
+print(f'Accuracy of the pruned model on the test images: {accuracy}')
+print(f'Average inference time per batch: {average_inference_time:.2f} ms')
+print(f'Min/Max inference time: {min_time:.2f}/{max_time:.2f} ms')
+print(f'Standard Deviation of inference times: {std_dev_time:.2f} ms')
+
 
 # Save the model
-import os
 model_save_path = './Saved_Models/PrunedModel.pth'
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 torch.save(model.state_dict(), model_save_path)

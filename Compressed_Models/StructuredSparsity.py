@@ -103,55 +103,45 @@ apply_structured_sparsity(model)
 '''
 TRAIN THE MODEL
 '''
+import time
 iter = 0
 for epoch in range(num_epochs):
     for i, (images, labels) in enumerate(train_loader):
-        # Load images with gradient accumulation capabilities
         images = images.view(-1, 28*28).requires_grad_()
-
-        # Clear gradients w.r.t. parameters
         optimizer.zero_grad()
-
-        # Forward pass to get output/logits
         outputs = model(images)
-
-        # Calculate Loss: softmax --> cross entropy loss
         loss = criterion(outputs, labels)
-
-        # Getting gradients w.r.t. parameters
         loss.backward()
-
-        # Updating parameters
         optimizer.step()
 
         iter += 1
 
         if iter % 500 == 0:
-            # Calculate Accuracy         
             correct = 0
             total = 0
-            # Iterate through test dataset
+            inference_times = []  # List to store inference times of each batch
+
             for images, labels in test_loader:
-                # Load images with gradient accumulation capabilities
                 images = images.view(-1, 28*28).requires_grad_()
-
-                # Forward pass only to get logits/output
+                
+                start_time = time.perf_counter()  # Start high-resolution timing
                 outputs = model(images)
-
-                # Get predictions from the maximum value
+                end_time = time.perf_counter()  # End timing
+                
+                inference_time = (end_time - start_time) * 1000  # Convert to milliseconds
+                inference_times.append(inference_time)
+                
                 _, predicted = torch.max(outputs.data, 1)
-
-                # Total number of labels
                 total += labels.size(0)
-
-                # Total correct predictions
                 correct += (predicted == labels).sum()
 
+            average_time = sum(inference_times) / len(inference_times)
+            min_time = min(inference_times)
+            max_time = max(inference_times)
+
             accuracy = 100 * correct / total
-
-            # Print Loss
-            print('Iteration: {}. Loss: {}. Accuracy: {}'.format(iter, loss.item(), accuracy))
-
+            print(f'Iteration: {iter}. Loss: {loss.item()}. Accuracy: {accuracy}%')
+            print(f'Inference Time: Avg: {average_time:.2f} ms, Min: {min_time:.2f} ms, Max: {max_time:.2f} m')
 import os
 
 # Define the model save path

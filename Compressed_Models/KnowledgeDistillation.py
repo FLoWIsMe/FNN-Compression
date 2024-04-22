@@ -2,7 +2,10 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 import torchvision.datasets as dsets
-import torch.nn.utils.prune as prune
+import torch.nn.functional as F
+import torch.optim as optim
+import time  # Importing the time module for high-resolution timing
+import os
 '''
 LOADING DATASET
 '''
@@ -169,53 +172,29 @@ class StudentFeedforwardNeuralNetModel(nn.Module):
 # Initialize the student model
 student_model = StudentFeedforwardNeuralNetModel(input_dim, hidden_dim, output_dim)
 
+'''
+TRAINING AND TIMING FOR STUDENT MODEL
+'''
 # Distillation parameters
-temperature = 2.0  # Controls the softening of probabilities
-alpha = 0.5  # Balances between the hard and soft targets
+temperature = 2.0  # Softening probabilities
+alpha = 0.5  # Balance factor
+criterion = nn.CrossEntropyLoss()  # Loss function
+student_optimizer = optim.SGD(student_model.parameters(), lr=0.1)  # Optimizer
 
-# Adjust the training loop for the student model
+inference_times = []  # List to store each batch's inference time
+
 for epoch in range(num_epochs):
     for images, labels in train_loader:
         images = images.view(-1, 28*28).requires_grad_()
 
-        # Forward pass through the teacher model
+        # Teacher model's output without gradients
         with torch.no_grad():
             teacher_outputs = model(images)
 
-        # Forward pass through the student model
+        # Student model forward pass
         student_outputs = student_model(images)
 
         # Calculate the loss
-        loss_hard = criterion(student_outputs, labels)  # Hard target loss
-        loss_soft = F.kl_div(
-            F.log_softmax(student_outputs / temperature, dim=1),
-            F.softmax(teacher_outputs / temperature, dim=1),
-            reduction='batchmean'
-        )  # Soft target loss
-        loss = alpha * loss_hard + (1 - alpha) * loss_soft
-
-        # Backpropagation and optimization
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-import torch.optim as optim
-
-# Re-initialize the student model to make sure we're starting fresh
-student_model = StudentFeedforwardNeuralNetModel(input_dim, hidden_dim, output_dim)
-
-# Initialize the optimizer for the student model
-student_optimizer = optim.SGD(student_model.parameters(), lr=learning_rate)
-
-for epoch in range(num_epochs):
-    for images, labels in train_loader:
-        images = images.view(-1, 28*28).requires_grad_()
-
-        # No gradients for the teacher outputs
-        with torch.no_grad():
-            teacher_outputs = model(images)
-
-        student_outputs = student_model(images)
-
         loss_hard = criterion(student_outputs, labels)
         loss_soft = F.kl_div(
             F.log_softmax(student_outputs / temperature, dim=1),
@@ -224,26 +203,37 @@ for epoch in range(num_epochs):
         )
         loss = alpha * loss_hard + (1 - alpha) * loss_soft
 
+        # Backpropagation
         student_optimizer.zero_grad()
         loss.backward()
         student_optimizer.step()
 
-    # Calculate Accuracy after each epoch
-    student_model.eval()  # Set the model to evaluation mode
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for images, labels in test_loader:
-            images = images.view(-1, 28*28)
-            outputs = student_model(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+    # Timing and accuracy measurement
+    correct = 0
+    total = 0
+    student_model.eval()  # Evaluation mode
+    for images, labels in test_loader:
+        images = images.view(-1, 28*28)
+
+        start_time = time.perf_counter()  # Start timing
+        outputs = student_model(images)
+        end_time = time.perf_counter()  # End timing
+
+        inference_time = (end_time - start_time) * 1000  # Convert to milliseconds
+        inference_times.append(inference_time)
+
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
 
     accuracy = 100 * correct / total
-    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.16f}, Accuracy: {accuracy:.16f}%')
+    average_time = sum(inference_times) / len(inference_times)
+    min_time = min(inference_times)
+    max_time = max(inference_times)
 
-    student_model.train()  # Set the model back to training mode
+    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.2f}%, Avg Time: {average_time:.2f} ms, Min Time: {min_time:.2f} ms, Max Time: {max_time:.2f} ms')
+
+# student_model.train()  # Set the model back to training mode
 
 # Define the path where you want to save the student model's state dictionary
 student_model_save_path = './Saved_Models/KnowledgeDitilledModel(StudentModel).pth'

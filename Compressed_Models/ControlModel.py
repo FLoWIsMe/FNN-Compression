@@ -3,6 +3,8 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import torchvision.datasets as dsets
 import torch.nn.utils.prune as prune
+import time  # Importing the time module
+
 '''
 LOADING DATASET
 '''
@@ -15,6 +17,7 @@ train_dataset = dsets.MNIST(root='./data',
 test_dataset = dsets.MNIST(root='./data', 
                            train=False, 
                            transform=transforms.ToTensor())
+
 '''
 MAKING DATASET ITERABLE
 '''
@@ -35,28 +38,20 @@ test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
 '''
 CREATE MODEL CLASS
 '''
+
 class FeedforwardNeuralNetModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(FeedforwardNeuralNetModel, self).__init__()
-        # Linear function
-        self.fc1 = nn.Linear(input_dim, hidden_dim) 
-
-        # Non-linearity
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.relu = nn.ReLU()
-
-        # Linear function (readout)
-        self.fc2 = nn.Linear(hidden_dim, output_dim)  
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
-        # Linear function  # LINEAR
         out = self.fc1(x)
-
-        # Non-linearity  # NON-LINEAR
         out = self.relu(out)
-
-        # Linear function (readout)  # LINEAR
         out = self.fc2(out)
         return out
+
 '''
 INSTANTIATE MODEL CLASS
 '''
@@ -75,82 +70,61 @@ criterion = nn.CrossEntropyLoss()
 INSTANTIATE OPTIMIZER CLASS
 '''
 learning_rate = 0.1
-
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 '''
 TRAIN THE MODEL
 '''
+import statistics
+
 iter = 0
 for epoch in range(num_epochs):
     for i, (images, labels) in enumerate(train_loader):
-        # Load images with gradient accumulation capabilities
         images = images.view(-1, 28*28).requires_grad_()
 
-        # Clear gradients w.r.t. parameters
         optimizer.zero_grad()
-
-        # Forward pass to get output/logits
         outputs = model(images)
-
-        # Calculate Loss: softmax --> cross entropy loss
         loss = criterion(outputs, labels)
-
-        # Getting gradients w.r.t. parameters
         loss.backward()
-
-        # Updating parameters
         optimizer.step()
 
         iter += 1
 
         if iter % 500 == 0:
-            # Calculate Accuracy         
             correct = 0
             total = 0
-            # Iterate through test dataset
+            inference_times = []  # List to store inference times of each batch
+
             for images, labels in test_loader:
-                # Load images with gradient accumulation capabilities
                 images = images.view(-1, 28*28).requires_grad_()
 
-                # Forward pass only to get logits/output
+                batch_start_time = time.perf_counter()  # Use perf_counter for higher resolution timing
                 outputs = model(images)
+                batch_end_time = time.perf_counter()  # End timing here
 
-                # Get predictions from the maximum value
+                batch_inference_time = (batch_end_time - batch_start_time) * 1000  # Convert to milliseconds
+                inference_times.append(batch_inference_time)  # Append batch time to list
+
                 _, predicted = torch.max(outputs.data, 1)
-
-                # Total number of labels
                 total += labels.size(0)
-
-                # Total correct predictions
                 correct += (predicted == labels).sum()
+
+            average_inference_time = sum(inference_times) / len(inference_times)
+            min_time = min(inference_times)
+            max_time = max(inference_times)
+            std_dev_time = statistics.stdev(inference_times) if len(inference_times) > 1 else 0
 
             accuracy = 100 * correct / total
 
-            # Print Loss
-            print('Iteration: {}. Loss: {}. Accuracy: {}'.format(iter, loss.item(), accuracy))
+            print(f'Iteration: {iter}. Loss: {loss.item()}. Accuracy: {accuracy}.')
+            print(f'Average Batch Inference Time: {average_inference_time:.2f} ms (Min: {min_time:.2f} ms, Max: {max_time:.2f} ms, Std Dev: {std_dev_time:.2f} ms)')
 
-
-# def recompute_mask(self, theta: float = 0.001):
-#     self.mask = torch.ones(
-#         self.weight.shape, dtype=torch.bool, device=self.mask.device
-#     )
-#     self.mask[torch.where(abs(self.weight) < theta)] = False
-            
-# Saving the model state dictionary so I can apply compression methods to it
-# Save the model
+# Save the model and configuration
 import os
-
-# Define the model save path
 model_save_path = './Saved_Models/ControlModel.pth'
-
-# Ensure the directory exists
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
-
-# Save the model
 torch.save(model.state_dict(), model_save_path)
 
-# Save the model configuration
 config_save_path = './Saved_Models/ControlModelConfigElements.pth'
 model_config = {'input_dim': input_dim, 'hidden_dim': hidden_dim, 'output_dim': output_dim}
 torch.save({

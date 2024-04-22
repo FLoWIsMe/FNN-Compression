@@ -178,20 +178,48 @@ torch.save(quantized_model.state_dict(), quantized_model_path)
 
 print("Quantized model saved successfully.")
 
+import torch
+import time  # Import the time module for high-resolution timing
+
 # Evaluate the quantized model
 correct = 0
 total = 0
+inference_times = []  # List to store each batch's inference time
+
 with torch.no_grad():
     for images, labels in test_loader:
         images = images.view(-1, 28*28)
+        
+        # Start timing using perf_counter for better resolution
+        start_time = time.perf_counter()
+        
         outputs = quantized_model(images)
+        
+        # End timing
+        end_time = time.perf_counter()
+        
+        # Calculate and store the inference time for this batch in milliseconds
+        batch_time = (end_time - start_time) * 1000  # Convert to milliseconds
+        inference_times.append(batch_time)
+        
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
+# Calculate average, minimum, and maximum inference times
+average_inference_time = sum(inference_times) / len(inference_times)
+min_inference_time = min(inference_times)
+max_inference_time = max(inference_times)
+
 accuracy = 100 * correct / total
 
-# Format accuracy to 16 decimal places
+# Format results
 formatted_accuracy = "{:.16f}".format(accuracy)
+formatted_average_time = "{:.2f} ms".format(average_inference_time)
+formatted_min_time = "{:.2f} ms".format(min_inference_time)
+formatted_max_time = "{:.2f} ms".format(max_inference_time)
 
+print(f'Average inference time per batch: {formatted_average_time}')
+print(f'Minimum inference time per batch: {formatted_min_time}')
+print(f'Maximum inference time per batch: {formatted_max_time}')
 print(f'Accuracy of the quantized model on the test images: {formatted_accuracy}%')
